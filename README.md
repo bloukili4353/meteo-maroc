@@ -1,0 +1,2 @@
+# meteo-maroc
+meteo-maroc
