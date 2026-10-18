@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Météo Settat et Ifrane</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6f94">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Mise en page : deux cartes villes côte à côte (une colonne sur téléphone), 7 jours par ville. */
+:root {
+  --bg: #eef2f5;
+  --surface: #ffffff;
+  --fg: #17212b;
+  --muted: #5b6b7a;
+  --line: #d9e1e7;
+  --settat: #b4661a;
+  --ifrane: #1f6f94;
+  --cold: #4a9fd0;
+  --warm: #e0883a;
+  --track: #e3e9ee;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1318;
+    --surface: #151d25;
+    --fg: #e6edf3;
+    --muted: #93a3b3;
+    --line: #25313c;
+    --settat: #e59a52;
+    --ifrane: #5fb6dc;
+    --track: #212c36;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1318;
+  --surface: #151d25;
+  --fg: #e6edf3;
+  --muted: #93a3b3;
+  --line: #25313c;
+  --settat: #e59a52;
+  --ifrane: #5fb6dc;
+  --track: #212c36;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+
+header.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 24px;
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0 0 4px;
+  text-wrap: balance;
+}
+.sub { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.stamp { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+button.refresh {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+button.refresh:hover { border-color: var(--muted); }
+button.refresh:focus-visible { outline: 2px solid var(--ifrane); outline-offset: 2px; }
+button.refresh[disabled] { opacity: 0.6; cursor: progress; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.city {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 18px 8px;
+  min-width: 0;
+}
+.city[data-city="settat"] { --tint: var(--settat); }
+.city[data-city="ifrane"] { --tint: var(--ifrane); }
+
+.city-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.city-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--tint);
+}
+.meta { color: var(--muted); font-size: 0.82rem; }
+
+.now {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.now .big {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 3.4rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.now .ico { font-size: 2.6rem; line-height: 1; }
+.now .txt { min-width: 0; }
+.now .cond { font-weight: 600; }
+.now .det { color: var(--muted); font-size: 0.86rem; }
+
+ul.days { list-style: none; margin: 0; padding: 0; }
+.day {
+  display: grid;
+  grid-template-columns: minmax(4.2rem, 5.6rem) 1.8rem 2.6rem 2rem minmax(40px, 1fr) 2rem;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.day:last-child { border-bottom: 0; }
+.day .name { font-weight: 600; text-transform: capitalize; min-width: 0; }
+.day .name small { display: block; font-weight: 400; color: var(--muted); font-size: 0.75rem; text-transform: none; }
+.day .ic { font-size: 1.3rem; text-align: center; }
+.day .rain { color: var(--ifrane); font-size: 0.8rem; text-align: right; }
+.day .rain.none { color: var(--muted); opacity: 0.6; }
+.day .lo { color: var(--muted); text-align: right; }
+.day .hi { font-weight: 600; text-align: right; }
+.bar { position: relative; height: 6px; border-radius: 3px; background: var(--track); }
+.bar i {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--cold), var(--warm));
+}
+
+.state { padding: 28px 0 24px; color: var(--muted); }
+.state strong { color: var(--fg); display: block; margin-bottom: 4px; }
+
+footer { margin-top: 22px; color: var(--muted); font-size: 0.8rem; }
+footer a { color: inherit; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .city { animation: rise 0.4s ease-out both; }
+  .city:nth-child(2) { animation-delay: 0.08s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Météo Settat et Ifrane</h1>
+      <p class="sub">Prévisions sur 7 jours, côte à côte</p>
+    </div>
+    <div class="actions">
+      <span class="stamp" id="stamp" aria-live="polite"></span>
+      <button class="refresh" id="refresh" type="button">Actualiser</button>
+    </div>
+  </header>
+
+  <main class="grid" id="grid">
+    <section class="city" data-city="settat"><div class="state">Chargement de Settat…</div></section>
+    <section class="city" data-city="ifrane"><div class="state">Chargement d'Ifrane…</div></section>
+  </main>
+
+  <footer>Données : <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Températures en °C, vent en km/h, précipitations en mm.</footer>
+</div>
+
+<script>
+(function () {
+  var CITIES = [
+    { id: "settat", name: "Settat", region: "Casablanca-Settat", alt: "360 m", lat: 33.0014, lon: -7.6166 },
+    { id: "ifrane", name: "Ifrane", region: "Fès-Meknès", alt: "1 665 m", lat: 33.5228, lon: -5.1106 }
+  ];
+
+  var WMO = {
+    0: ["Ciel dégagé", "☀️"], 1: ["Plutôt dégagé", "🌤️"], 2: ["Partiellement nuageux", "⛅"], 3: ["Couvert", "☁️"],
+    45: ["Brouillard", "🌫️"], 48: ["Brouillard givrant", "🌫️"],
+    51: ["Bruine légère", "🌦️"], 53: ["Bruine", "🌦️"], 55: ["Bruine forte", "🌦️"],
+    56: ["Bruine verglaçante", "🌧️"], 57: ["Bruine verglaçante", "🌧️"],
+    61: ["Pluie faible", "🌧️"], 63: ["Pluie", "🌧️"], 65: ["Pluie forte", "🌧️"],
+    66: ["Pluie verglaçante", "🌧️"], 67: ["Pluie verglaçante", "🌧️"],
+    71: ["Neige faible", "🌨️"], 73: ["Neige", "🌨️"], 75: ["Neige forte", "❄️"], 77: ["Grains de neige", "🌨️"],
+    80: ["Averses faibles", "🌦️"], 81: ["Averses", "🌧️"], 82: ["Averses violentes", "⛈️"],
+    85: ["Averses de neige", "🌨️"], 86: ["Fortes averses de neige", "❄️"],
+    95: ["Orage", "⛈️"], 96: ["Orage et grêle", "⛈️"], 99: ["Orage et forte grêle", "⛈️"]
+  };
+  function wmo(code) { return WMO[code] || ["Conditions variables", "🌡️"]; }
+
+  function url(c) {
+    return "https://api.open-meteo.com/v1/forecast?latitude=" + c.lat + "&longitude=" + c.lon +
+      "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max" +
+      "&timezone=Africa%2FCasablanca&forecast_days=7";
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+  function r(n) { return Math.round(n); }
+
+  function parseDay(iso) {
+    var p = iso.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  function render(city, data, offline) {
+    var el = document.querySelector('[data-city="' + city.id + '"]');
+    var cur = data.current, d = data.daily;
+    var c = wmo(cur.weather_code);
+    var lo = Math.min.apply(null, d.temperature_2m_min);
+    var hi = Math.max.apply(null, d.temperature_2m_max);
+    var span = Math.max(hi - lo, 1);
+
+    var rows = d.time.map(function (iso, i) {
+      var date = parseDay(iso);
+      var name = i === 0 ? "Aujourd'hui" : date.toLocaleDateString("fr-FR", { weekday: "long" });
+      var short = date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+      var w = wmo(d.weather_code[i]);
+      var left = ((d.temperature_2m_min[i] - lo) / span) * 100;
+      var width = Math.max(((d.temperature_2m_max[i] - d.temperature_2m_min[i]) / span) * 100, 8);
+      if (left + width > 100) left = 100 - width;
+      var p = d.precipitation_probability_max[i];
+      var rain = p == null ? "" : p + " %";
+      var none = !p;
+      return '<li class="day">' +
+        '<span class="name">' + esc(name) + '<small>' + esc(short) + '</small></span>' +
+        '<span class="ic" title="' + esc(w[0]) + '" role="img" aria-label="' + esc(w[0]) + '">' + w[1] + '</span>' +
+        '<span class="rain' + (none ? " none" : "") + '" title="Probabilité de pluie, cumul ' + r(d.precipitation_sum[i]) + ' mm">' + esc(rain) + '</span>' +
+        '<span class="lo">' + r(d.temperature_2m_min[i]) + '°</span>' +
+        '<span class="bar"><i style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%"></i></span>' +
+        '<span class="hi">' + r(d.temperature_2m_max[i]) + '°</span>' +
+        '</li>';
+    }).join("");
+
+    el.innerHTML =
+      '<div class="city-head"><h2>' + esc(city.name) + '</h2>' +
+      '<span class="meta">' + esc(city.region) + ' · altitude ' + esc(city.alt) + '</span></div>' +
+      '<div class="now">' +
+        '<span class="ico" aria-hidden="true">' + c[1] + '</span>' +
+        '<span class="big">' + r(cur.temperature_2m) + '°</span>' +
+        '<div class="txt"><div class="cond">' + esc(c[0]) + '</div>' +
+        '<div class="det">Humidité ' + r(cur.relative_humidity_2m) + ' % · Vent ' + r(cur.wind_speed_10m) + ' km/h</div>' +
+        (offline ? '<div class="det">Dernières données enregistrées (hors connexion)</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<ul class="days">' + rows + '</ul>';
+  }
+
+  function showError(city) {
+    var el = document.querySelector('[data-city="' + city.id + '"]');
+    el.innerHTML = '<div class="city-head"><h2>' + esc(city.name) + '</h2></div>' +
+      '<div class="state"><strong>Prévisions indisponibles</strong>' +
+      'Vérifiez votre connexion internet puis appuyez sur Actualiser.</div>';
+  }
+
+  function cacheGet(id) {
+    try { var s = localStorage.getItem("meteo-" + id); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+  function cacheSet(id, data) {
+    try { localStorage.setItem("meteo-" + id, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function load(city) {
+    return fetch(url(city))
+      .then(function (res) { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
+      .then(function (data) { cacheSet(city.id, data); render(city, data, false); return true; })
+      .catch(function () {
+        var cached = cacheGet(city.id);
+        if (cached) { render(city, cached, true); } else { showError(city); }
+        return false;
+      });
+  }
+
+  var btn = document.getElementById("refresh");
+  var stamp = document.getElementById("stamp");
+
+  function refresh() {
+    btn.disabled = true;
+    Promise.all(CITIES.map(load)).then(function (results) {
+      btn.disabled = false;
+      if (results.every(Boolean)) {
+        stamp.textContent = "Mis à jour à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      } else {
+        stamp.textContent = "Connexion impossible";
+      }
+    });
+  }
+
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+
+  btn.addEventListener("click", refresh);
+  refresh();
+  setInterval(refresh, 30 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
